@@ -389,18 +389,46 @@ fn find_user_avatar(username: &str) -> Option<String> {
 
 // ===== Tauri Commands =====
 
+static LAST_SYSTEM_REFRESH: OnceLock<Mutex<(std::time::Instant, SystemInfo)>> = OnceLock::new();
+static SYSTEM_CACHE_DURATION: std::time::Duration = std::time::Duration::from_millis(1000); // Cache for 1 second
+
 #[tauri::command]
 fn get_system_info() -> SystemInfo {
     static SYS: OnceLock<Mutex<System>> = OnceLock::new();
     let sys_mutex = SYS.get_or_init(|| {
         let mut sys = System::new();
-        sys.refresh_cpu_all();
-        sys.refresh_memory();
+        sys.refresh_all();
         Mutex::new(sys)
     });
 
+    // Check if we have a recent cached value
+    if let Ok(cache_guard) = LAST_SYSTEM_REFRESH.get_or_init(|| {
+        let mut sys = sys_mutex.lock().expect("sysinfo mutex poisoned");
+        sys.refresh_memory();
+        
+        let info = SystemInfo {
+            cpu_usage: sys.global_cpu_usage(),
+            memory_used: sys.used_memory(),
+            memory_total: sys.total_memory(),
+            memory_percent: {
+                let total = sys.total_memory();
+                if total > 0 { (sys.used_memory() as f32 / total as f32) * 100.0 } else { 0.0 }
+            },
+            uptime: System::uptime(),
+            hostname: System::host_name().unwrap_or_default(),
+            os_name: System::name().unwrap_or_default(),
+            kernel_version: System::kernel_version().unwrap_or_default(),
+        };
+        Mutex::new((std::time::Instant::now(), info))
+    }).lock() {
+        let (last_refresh, cached_info) = cache_guard.clone();
+        if last_refresh.elapsed() < SYSTEM_CACHE_DURATION {
+            return cached_info;
+        }
+    }
+
+    // Cache expired, refresh
     let mut sys = sys_mutex.lock().expect("sysinfo mutex poisoned");
-    sys.refresh_cpu_all();
     sys.refresh_memory();
 
     let cpu_usage = sys.global_cpu_usage();
@@ -412,7 +440,7 @@ fn get_system_info() -> SystemInfo {
         0.0
     };
 
-    SystemInfo {
+    let info = SystemInfo {
         cpu_usage,
         memory_used,
         memory_total,
@@ -421,7 +449,14 @@ fn get_system_info() -> SystemInfo {
         hostname: System::host_name().unwrap_or_default(),
         os_name: System::name().unwrap_or_default(),
         kernel_version: System::kernel_version().unwrap_or_default(),
+    };
+
+    if let Ok(mut cache_guard) = LAST_SYSTEM_REFRESH.get_or_init(|| Mutex::new((std::time::Instant::now(), info.clone()))).lock() {
+        cache_guard.0 = std::time::Instant::now();
+        cache_guard.1 = info.clone();
     }
+
+    info
 }
 
 #[tauri::command]
@@ -441,6 +476,36 @@ fn get_battery_info() -> Option<BatteryInfo> {
 
 #[tauri::command]
 fn get_network_info() -> NetworkInfo {
+    static LAST_NETWORK_REFRESH: OnceLock<Mutex<(std::time::Instant, NetworkInfo)>> = OnceLock::new();
+    static NETWORK_CACHE_DURATION: std::time::Duration = std::time::Duration::from_secs(3);
+
+    if let Ok(cache_guard) = LAST_NETWORK_REFRESH.get_or_init(|| {
+        let ssid = run_command("nmcli", &["-t", "-f", "active,ssid", "dev", "wifi"])
+            .ok()
+            .and_then(|output| {
+                output.lines()
+                    .find(|line| line.starts_with("yes:"))
+                    .map(|line| line.trim_start_matches("yes:").to_string())
+            });
+        
+        let ip_address = run_command("hostname", &["-I"])
+            .ok()
+            .and_then(|output| output.split_whitespace().next().map(String::from));
+
+        let info = NetworkInfo {
+            is_connected: ssid.is_some(),
+            ssid,
+            signal_strength: None,
+            ip_address,
+        };
+        Mutex::new((std::time::Instant::now(), info))
+    }).lock() {
+        let (last_refresh, cached_info) = cache_guard.clone();
+        if last_refresh.elapsed() < NETWORK_CACHE_DURATION {
+            return cached_info;
+        }
+    }
+
     let ssid = run_command("nmcli", &["-t", "-f", "active,ssid", "dev", "wifi"])
         .ok()
         .and_then(|output| {
@@ -453,12 +518,19 @@ fn get_network_info() -> NetworkInfo {
         .ok()
         .and_then(|output| output.split_whitespace().next().map(String::from));
 
-    NetworkInfo {
+    let info = NetworkInfo {
         is_connected: ssid.is_some(),
         ssid,
         signal_strength: None,
         ip_address,
+    };
+
+    if let Ok(mut cache_guard) = LAST_NETWORK_REFRESH.get_or_init(|| Mutex::new((std::time::Instant::now(), info.clone()))).lock() {
+        cache_guard.0 = std::time::Instant::now();
+        cache_guard.1 = info.clone();
     }
+
+    info
 }
 
 #[tauri::command]

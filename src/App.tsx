@@ -166,7 +166,7 @@ const App = () => {
     };
 
     fetchAll();
-    const interval = setInterval(fetchAll, 2000);
+    const interval = setInterval(fetchAll, 5000);  // Increased from 2000ms to 5000ms for better responsiveness
     return () => clearInterval(interval);
   }, [scene]);
 
@@ -219,37 +219,33 @@ const App = () => {
   };
 
   // ==================== AUDIO CONTROLS ====================
-  const setVolume = async (vol: number) => {
+  const setVolume = useCallback(async (vol: number) => {
     try {
+      setUiVolume(vol);  // Optimistic update
       await invoke('set_volume', { volume: vol });
-      const aud = await invoke<AudioInfo>('get_audio_info');
-      setAudioInfo(aud);
+      // Fetch audio info on next poll, don't block UI
     } catch (e) {
       console.error('Set volume failed:', e);
     }
-  };
+  }, []);
 
-  const toggleMute = async () => {
+  const toggleMute = useCallback(async () => {
     try {
       await invoke('toggle_mute');
-      const aud = await invoke<AudioInfo>('get_audio_info');
-      setAudioInfo(aud);
+      // Fetch audio info on next poll, don't block UI
     } catch (e) {
       console.error('Toggle mute failed:', e);
     }
-  };
+  }, []);
 
-  const mediaControl = async (action: string) => {
+  const mediaControl = useCallback(async (action: string) => {
     try {
       await invoke('media_control', { action });
-      setTimeout(async () => {
-        const aud = await invoke<AudioInfo>('get_audio_info');
-        setAudioInfo(aud);
-      }, 300);
+      // Fetch audio info on next poll, don't block UI
     } catch (e) {
       console.error('Media control failed:', e);
     }
-  };
+  }, []);
 
   // ==================== OPEN FILE ====================
   const openFile = async (path: string) => {

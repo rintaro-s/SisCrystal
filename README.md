@@ -1,7 +1,6 @@
 # SCHALE Desktop Environment
 
-Ubuntu向けのモダンなデスクトップ環境UI。ブルーアーカイブ風のデザインをベースにした美しいインターフェース。
-
+Ubuntu向けのモダンなデスクトップ環境UI。
 ## 概要
 
 - **フレームワーク**: Tauri 2.x + React + TypeScript
