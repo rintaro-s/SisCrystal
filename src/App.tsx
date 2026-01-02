@@ -81,10 +81,44 @@ const App = () => {
 
   // Derived values
   const accentColor = settings?.accent_color || '#00A3FF';
+  const theme = settings?.theme || 'crystal';
+  const isDarkTheme = theme === 'dark' || theme === 'noir' || theme === 'midnight';
 
   // Styles
-  const crystalBase = "backdrop-blur-2xl bg-white/20 border border-white/40 shadow-[0_8px_32px_rgba(0,163,255,0.1)]";
-  const blueGradient = "bg-gradient-to-br from-[#00A3FF] to-[#0066FF]";
+  const themeBgClass =
+    theme === 'noir'
+      ? 'bg-black'
+      : theme === 'midnight'
+        ? 'bg-slate-950'
+        : theme === 'dark'
+          ? 'bg-slate-950'
+          : 'bg-[#F7FBFF]';
+
+  const textMainClass = isDarkTheme ? 'text-slate-100' : 'text-slate-800';
+  const textSubClass = isDarkTheme ? 'text-slate-300' : 'text-slate-400';
+  const textMutedClass = isDarkTheme ? 'text-slate-400' : 'text-slate-600';
+
+  const crystalBase = isDarkTheme
+    ? theme === 'noir'
+      ? 'backdrop-blur-2xl bg-black/45 border border-white/10 shadow-2xl'
+      : theme === 'midnight'
+        ? 'backdrop-blur-2xl bg-slate-950/45 border border-white/10 shadow-2xl'
+        : 'backdrop-blur-2xl bg-slate-950/35 border border-white/10 shadow-2xl'
+    : 'backdrop-blur-2xl bg-white/20 border border-white/40 shadow-[0_8px_32px_rgba(0,163,255,0.1)]';
+
+  const panelCardClass = isDarkTheme
+    ? 'bg-white/5 border border-white/10 hover:bg-white/10'
+    : 'bg-white/40 border border-white hover:bg-blue-50';
+
+  const dividerClass = isDarkTheme ? 'bg-white/10' : 'bg-blue-200/50';
+
+  const blueGradient = isDarkTheme
+    ? theme === 'midnight'
+      ? 'bg-gradient-to-br from-indigo-500/90 to-cyan-500/70'
+      : theme === 'noir'
+        ? 'bg-gradient-to-br from-white/20 to-white/5'
+        : 'bg-gradient-to-br from-slate-700/80 to-slate-900/80'
+    : 'bg-gradient-to-br from-[#00A3FF] to-[#0066FF]';
 
   // ==================== LOAD SETTINGS ====================
   useEffect(() => {
@@ -326,7 +360,7 @@ const App = () => {
 
   // ==================== DESKTOP SCENE ====================
   return (
-    <div className="w-screen h-screen flex flex-col relative overflow-hidden font-sans select-none bg-[#F7FBFF]">
+    <div className={`w-screen h-screen flex flex-col relative overflow-hidden font-sans select-none ${themeBgClass}`}>
       {/* ===== WALLPAPER ===== */}
       <div 
         className="absolute inset-0 bg-cover bg-center transition-transform duration-[40s] scale-110"
@@ -335,7 +369,20 @@ const App = () => {
           opacity: settings?.wallpaper_opacity ?? 0.4,
         }}
       />
-      <div className="absolute inset-0 bg-gradient-to-tr from-white/60 via-transparent to-blue-50/30 pointer-events-none" />
+      {/* Theme overlay (minimal): makes non-crystal themes actually visible */}
+      {isDarkTheme ? (
+        <div
+          className={`absolute inset-0 pointer-events-none ${
+            theme === 'noir'
+              ? 'bg-gradient-to-tr from-black/95 via-black/70 to-black/35'
+              : theme === 'midnight'
+                ? 'bg-gradient-to-tr from-slate-950/90 via-indigo-950/40 to-cyan-950/20'
+                : 'bg-gradient-to-tr from-slate-950/90 via-slate-950/55 to-slate-900/25'
+          }`}
+        />
+      ) : (
+        <div className="absolute inset-0 bg-gradient-to-tr from-white/60 via-transparent to-blue-50/30 pointer-events-none" />
+      )}
       
       {/* Grid decoration */}
       <div 
@@ -354,26 +401,28 @@ const App = () => {
             <span className="text-[10px] font-black tracking-[0.3em] leading-none uppercase italic" style={{ color: accentColor }}>
               SisCrystal
             </span>
-            <span className="text-2xl font-black text-slate-800 tracking-tighter italic">SisCrystal</span>
+            <span className={`text-2xl font-black tracking-tighter italic ${textMainClass}`}>SisCrystal</span>
           </div>
-          <div className="h-10 w-[1px] bg-blue-200/50" />
+          <div className={`h-10 w-[1px] ${dividerClass}`} />
           <div className="flex flex-col">
-            <span className="text-[8px] font-bold text-slate-400 uppercase">System Load</span>
+            <span className={`text-[8px] font-bold uppercase ${textSubClass}`}>System Load</span>
             <div className="flex items-center gap-2">
-              <div className="w-24 h-1.5 bg-slate-200/50 rounded-full overflow-hidden">
+              <div className={`w-24 h-1.5 rounded-full overflow-hidden ${isDarkTheme ? 'bg-white/10' : 'bg-slate-200/50'}`}>
                 <div 
                   className="h-full transition-all" 
                   style={{ width: `${systemInfo?.cpu_usage || 0}%`, backgroundColor: accentColor }} 
                 />
               </div>
-              <span className="text-[10px] font-bold text-slate-600">{systemInfo?.cpu_usage?.toFixed(0) || 0}%</span>
+              <span className={`text-[10px] font-bold ${textMutedClass}`}>{systemInfo?.cpu_usage?.toFixed(0) || 0}%</span>
             </div>
           </div>
         </div>
 
         {/* Center: Sister Control Bar (always visible) */}
-        <div className={`h-16 px-5 rounded-[2rem] flex items-center gap-4 ${crystalBase} border-white/60`}
-             style={{ backgroundColor: 'rgba(15,23,42,0.65)' }}>
+        <div
+          className={`h-16 px-5 rounded-[2rem] flex items-center gap-4 ${crystalBase}`}
+          style={isDarkTheme ? undefined : { backgroundColor: 'rgba(15,23,42,0.65)' }}
+        >
           {/* Modules */}
           <div className="flex items-center gap-2">
             {[
@@ -393,7 +442,7 @@ const App = () => {
             ))}
           </div>
 
-          <div className="h-8 w-[1px] bg-white/15" />
+          <div className={`h-8 w-[1px] ${isDarkTheme ? 'bg-white/10' : 'bg-white/15'}`} />
 
           {/* Media */}
           <div className="flex items-center gap-2 text-white">
@@ -420,7 +469,7 @@ const App = () => {
             </div>
           </div>
 
-          <div className="h-8 w-[1px] bg-white/15" />
+          <div className={`h-8 w-[1px] ${isDarkTheme ? 'bg-white/10' : 'bg-white/15'}`} />
 
           {/* Volume */}
           <div className="flex items-center gap-2 text-white">
@@ -451,7 +500,7 @@ const App = () => {
             <span className="text-[10px] font-black text-white/70 w-10 text-right">{uiVolume}%</span>
           </div>
 
-          <div className="h-8 w-[1px] bg-white/15" />
+          <div className={`h-8 w-[1px] ${isDarkTheme ? 'bg-white/10' : 'bg-white/15'}`} />
 
           {/* Status */}
           <div className="flex items-center gap-3 text-white/80">
@@ -463,8 +512,8 @@ const App = () => {
         {/* Right: Time, Launcher, Menu & User */}
         <div className="flex items-center gap-4 text-right">
           <div>
-            <div className="text-3xl font-black italic text-slate-800 leading-none tracking-tighter">{formatTime(currentTime)}</div>
-            <div className="text-[10px] font-bold text-slate-400 tracking-[0.3em] uppercase mt-1">{formatDate(currentTime)}</div>
+            <div className={`text-3xl font-black italic leading-none tracking-tighter ${textMainClass}`}>{formatTime(currentTime)}</div>
+            <div className={`text-[10px] font-bold tracking-[0.3em] uppercase mt-1 ${textSubClass}`}>{formatDate(currentTime)}</div>
           </div>
 
           <button
@@ -495,9 +544,9 @@ const App = () => {
                       <span className="text-[10px] font-black tracking-[0.4em] uppercase italic" style={{ color: accentColor }}>
                         SisCrystal Modules
                       </span>
-                      <h4 className="text-xl font-black italic tracking-widest text-slate-800 uppercase">Sister Root</h4>
+                      <h4 className={`text-xl font-black italic tracking-widest uppercase ${textMainClass}`}>Sister Root</h4>
                     </div>
-                    <button onClick={() => setMenuOpen(false)} className="text-slate-300 hover:text-red-500 transition-colors">
+                    <button onClick={() => setMenuOpen(false)} className={`${isDarkTheme ? 'text-white/50 hover:text-red-400' : 'text-slate-300 hover:text-red-500'} transition-colors`}>
                       <X size={24} />
                     </button>
                   </div>
@@ -511,23 +560,23 @@ const App = () => {
                       <button
                         key={app.id}
                         onClick={() => openModule(app.id)}
-                        className="flex flex-col items-center p-5 rounded-[2rem] bg-white/40 border border-white hover:bg-blue-50 transition-all group shadow-sm"
+                        className={`flex flex-col items-center p-5 rounded-[2rem] transition-all group shadow-sm ${panelCardClass}`}
                       >
                         <div className={`${app.color} text-white p-3 rounded-2xl mb-2 group-hover:scale-110 transition-transform shadow-lg`}>
                           <app.icon size={22} />
                         </div>
-                        <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest">{app.label}</span>
+                        <span className={`text-[10px] font-black uppercase tracking-widest ${isDarkTheme ? 'text-slate-100' : 'text-slate-700'}`}>{app.label}</span>
                       </button>
                     ))}
                   </div>
-                  <div className="mt-8 pt-6 border-t border-blue-50 flex items-center justify-between">
+                  <div className={`mt-8 pt-6 border-t flex items-center justify-between ${isDarkTheme ? 'border-white/10' : 'border-blue-50'}`}>
                     <div className="flex items-center gap-3">
                       {userAvatarSrc && (
                         <div className="w-8 h-8 rounded-full overflow-hidden">
                           <img src={userAvatarSrc} className="w-full h-full" />
                         </div>
                       )}
-                      <span className="text-[10px] font-bold text-slate-400">{userProfile?.username ?? 'sister'}</span>
+                      <span className={`text-[10px] font-bold ${textSubClass}`}>{userProfile?.username ?? 'sister'}</span>
                     </div>
                     <button
                       onClick={() => systemAction('shutdown')}
@@ -543,7 +592,9 @@ const App = () => {
 
           <button
             onClick={() => setShowPowerMenu(!showPowerMenu)}
-            className="w-14 h-14 rounded-full p-1 bg-white border border-blue-100 shadow-xl group cursor-pointer overflow-hidden"
+            className={`w-14 h-14 rounded-full p-1 shadow-xl group cursor-pointer overflow-hidden ${
+              isDarkTheme ? 'bg-white/5 border border-white/10' : 'bg-white border border-blue-100'
+            }`}
           >
             {userAvatarSrc ? (
               <img 
@@ -571,7 +622,7 @@ const App = () => {
           style={{ pointerEvents: 'auto' }}
         >
           <div
-            className={`${crystalBase} border-white/60 shadow-2xl rounded-[3rem] ${
+            className={`${crystalBase} shadow-2xl rounded-[3rem] ${
               settings.dock_position === 'left' || settings.dock_position === 'right'
                 ? 'p-3 flex flex-col gap-2'
                 : 'px-6 py-3 flex items-center gap-2'
@@ -837,7 +888,14 @@ const App = () => {
 
       {/* ===== APP LAUNCHER ===== */}
       {showAppLauncher && (
-        <AppLauncher accentColor={accentColor} onClose={() => setShowAppLauncher(false)} />
+        settings ? (
+          <AppLauncher
+            accentColor={accentColor}
+            settings={settings}
+            onUpdateSettings={saveSettings}
+            onClose={() => setShowAppLauncher(false)}
+          />
+        ) : null
       )}
 
       {/* ===== ANIMATIONS ===== */}

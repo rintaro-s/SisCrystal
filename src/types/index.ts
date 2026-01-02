@@ -42,6 +42,7 @@ export interface AudioInfo {
 }
 
 export interface DesktopApp {
+  id: string;
   name: string;
   exec: string;
   icon: string | null;
@@ -63,6 +64,7 @@ export interface DesktopSettings {
   wallpaper_opacity: number;
   theme: string;
   accent_color: string;
+  favorite_apps: string[];
   dock_position: 'bottom' | 'left' | 'right';
   dock_size: number;
   dock_auto_hide: boolean;

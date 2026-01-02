@@ -31,6 +31,9 @@
           "/usr/share/backgrounds/**",
           "/usr/share/wallpapers/**",
           "/usr/local/share/backgrounds/**",
+          "/usr/share/icons/**",
+          "/usr/local/share/icons/**",
+          "/usr/share/pixmaps/**",
           "/var/lib/AccountsService/icons/**"
         ]
       }

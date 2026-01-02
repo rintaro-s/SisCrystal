@@ -6,6 +6,7 @@ use std::process::Command;
 use std::sync::{Mutex, OnceLock};
 use sysinfo::{System, Disks};
 use walkdir::WalkDir;
+use mpris::PlayerFinder;
 
 // ===== Type Definitions =====
 
@@ -58,6 +59,7 @@ pub struct AudioInfo {
 
 #[derive(Serialize, Clone)]
 pub struct DesktopApp {
+    pub id: String,
     pub name: String,
     pub exec: String,
     pub icon: Option<String>,
@@ -88,6 +90,7 @@ pub struct DesktopSettings {
     pub wallpaper_opacity: f32,
     pub theme: String,
     pub accent_color: String,
+    pub favorite_apps: Vec<String>,
     pub dock_position: String,
     pub dock_size: u32,
     pub dock_auto_hide: bool,
@@ -108,6 +111,7 @@ impl Default for DesktopSettings {
             wallpaper_opacity: 0.4,
             theme: String::from("crystal"),
             accent_color: String::from("#00A3FF"),
+            favorite_apps: Vec::new(),
             dock_position: String::from("bottom"),
             dock_size: 64,
             dock_auto_hide: false,
@@ -191,8 +195,126 @@ fn parse_wpctl_volume(output: &str) -> Option<(u32, bool)> {
     Some((percent, muted))
 }
 
+fn resolve_icon_path(icon: &str) -> Option<String> {
+    let icon = icon.trim();
+    if icon.is_empty() {
+        return None;
+    }
+
+    // Absolute path
+    let p = PathBuf::from(icon);
+    if p.is_absolute() && p.exists() && p.is_file() {
+        return Some(p.to_string_lossy().to_string());
+    }
+
+    let lower = icon.to_lowercase();
+    let has_ext = lower.ends_with(".png") || lower.ends_with(".svg") || lower.ends_with(".xpm");
+    let mut filenames = Vec::new();
+    if has_ext {
+        filenames.push(icon.to_string());
+    } else {
+        filenames.push(format!("{icon}.svg"));
+        filenames.push(format!("{icon}.png"));
+        filenames.push(format!("{icon}.xpm"));
+    }
+
+    // Common pixmaps
+    for ext in ["png", "svg", "xpm"] {
+        let pix = PathBuf::from(format!("/usr/share/pixmaps/{icon}.{ext}"));
+        if pix.exists() && pix.is_file() {
+            return Some(pix.to_string_lossy().to_string());
+        }
+    }
+
+    let mut roots: Vec<PathBuf> = Vec::new();
+    if let Some(home) = dirs::home_dir() {
+        roots.push(home.join(".local/share/icons"));
+    }
+    roots.push(PathBuf::from("/usr/share/icons"));
+    roots.push(PathBuf::from("/usr/local/share/icons"));
+
+    let themes = ["hicolor", "Adwaita"];
+    let sizes = [
+        "scalable",
+        "512x512",
+        "256x256",
+        "192x192",
+        "128x128",
+        "96x96",
+        "64x64",
+        "48x48",
+        "32x32",
+        "24x24",
+        "16x16",
+    ];
+    let contexts = [
+        "apps",
+        "applications",
+        "places",
+        "categories",
+        "mimetypes",
+        "status",
+        "actions",
+    ];
+
+    for root in roots {
+        for theme in themes {
+            for size in sizes {
+                for ctx in contexts {
+                    for filename in &filenames {
+                        let candidate = root.join(theme).join(size).join(ctx).join(filename);
+                        if candidate.exists() && candidate.is_file() {
+                            return Some(candidate.to_string_lossy().to_string());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    None
+}
+
 fn get_player_metadata() -> (Option<String>, Option<String>, bool) {
-    // Prefer "any" player; if that fails, try scanning all players and picking a Playing one.
+    // Primary: MPRIS over DBus (works on GNOME when a player exposes MPRIS)
+    if let Ok(finder) = PlayerFinder::new() {
+        if let Ok(players) = finder.find_all() {
+            // Prefer a playing player, else the first one
+            let mut chosen = None;
+            for p in players {
+                if let Ok(status) = p.get_playback_status() {
+                    if status == mpris::PlaybackStatus::Playing {
+                        chosen = Some(p);
+                        break;
+                    }
+                }
+                if chosen.is_none() {
+                    chosen = Some(p);
+                }
+            }
+
+            if let Some(player) = chosen {
+                let playing = player
+                    .get_playback_status()
+                    .map(|s| s == mpris::PlaybackStatus::Playing)
+                    .unwrap_or(false);
+                let meta = player.get_metadata().ok();
+                let title = meta
+                    .as_ref()
+                    .and_then(|m| m.title().map(|s| s.to_string()));
+                let artist = meta
+                    .as_ref()
+                    .and_then(|m| m.artists())
+                    .and_then(|a| a.get(0).map(|s| s.to_string()));
+                // If MPRIS is present but metadata is empty, try playerctl as a fallback.
+                if title.is_some() || artist.is_some() {
+                    return (title, artist, playing);
+                }
+            }
+        }
+    }
+
+    // Fallback: playerctl if installed
     if let Ok(output) = run_command(
         "playerctl",
         &[
@@ -207,34 +329,6 @@ fn get_player_metadata() -> (Option<String>, Option<String>, bool) {
         let artist = parts.get(1).filter(|s| !s.is_empty()).map(|s| s.to_string());
         let playing = parts.get(2).map(|s| *s == "Playing").unwrap_or(false);
         return (title, artist, playing);
-    }
-
-    if let Ok(list) = run_command("playerctl", &["-l"]) {
-        for player in list.lines().map(|s| s.trim()).filter(|s| !s.is_empty()) {
-            if let Ok(status) = run_command("playerctl", &["--player", player, "status"]) {
-                if status.trim() != "Playing" {
-                    continue;
-                }
-            } else {
-                continue;
-            }
-            if let Ok(output) = run_command(
-                "playerctl",
-                &[
-                    "--player",
-                    player,
-                    "metadata",
-                    "--format",
-                    "{{title}}|||{{artist}}|||{{status}}",
-                ],
-            ) {
-                let parts: Vec<&str> = output.trim().split("|||").collect();
-                let title = parts.get(0).filter(|s| !s.is_empty()).map(|s| s.to_string());
-                let artist = parts.get(1).filter(|s| !s.is_empty()).map(|s| s.to_string());
-                let playing = parts.get(2).map(|s| *s == "Playing").unwrap_or(false);
-                return (title, artist, playing);
-            }
-        }
     }
 
     (None, None, false)
@@ -447,8 +541,51 @@ fn media_control(action: &str) -> Result<(), String> {
         "previous" => "previous",
         _ => return Err("Unknown action".to_string()),
     };
+
+    // Primary: MPRIS
+    let mut mpris_error: Option<String> = None;
+    if let Ok(finder) = PlayerFinder::new() {
+        if let Ok(players) = finder.find_all() {
+            // Prefer playing player
+            let mut chosen = None;
+            for p in players {
+                if let Ok(status) = p.get_playback_status() {
+                    if status == mpris::PlaybackStatus::Playing {
+                        chosen = Some(p);
+                        break;
+                    }
+                }
+                if chosen.is_none() {
+                    chosen = Some(p);
+                }
+            }
+
+            if let Some(player) = chosen {
+                let res: Result<(), String> = match cmd {
+                    "play-pause" => player.play_pause().map_err(|e| e.to_string()),
+                    "next" => player.next().map_err(|e| e.to_string()),
+                    "previous" => player.previous().map_err(|e| e.to_string()),
+                    _ => Ok(()),
+                };
+                if res.is_ok() {
+                    return Ok(());
+                }
+                mpris_error = res.err();
+            }
+        }
+    }
+
+    // Fallback: playerctl
     run_command("playerctl", &["--player=%any", cmd]).map_err(|e| {
-        format!("playerctl failed ({e}). Install 'playerctl' and ensure a MPRIS player is running.")
+        if let Some(mpris_error) = &mpris_error {
+            format!(
+                "MPRIS failed ({mpris_error}); playerctl also failed ({e})."
+            )
+        } else {
+            format!(
+                "No MPRIS player found. Install 'playerctl' or run a MPRIS-compatible player. Details: {e}"
+            )
+        }
     })?;
     Ok(())
 }
@@ -525,15 +662,21 @@ fn parse_desktop_file(path: &std::path::Path) -> Option<DesktopApp> {
     }
 
     let name = section.attr("Name")?.to_string();
+    let id = path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or(&name)
+        .to_string();
     let exec = section.attr("Exec")
         .map(|e| e.split_whitespace().next().unwrap_or(e).to_string())?;
-    let icon = section.attr("Icon").map(|s| s.to_string());
+    let icon = section.attr("Icon").and_then(resolve_icon_path);
     let categories = section.attr("Categories")
         .map(|c| c.split(';').filter(|s| !s.is_empty()).map(String::from).collect())
         .unwrap_or_default();
     let description = section.attr("Comment").map(|s| s.to_string());
 
     Some(DesktopApp {
+        id,
         name,
         exec,
         icon,
