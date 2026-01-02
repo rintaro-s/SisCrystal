@@ -1,6 +1,12 @@
 # SCHALE Desktop Environment
 
 Ubuntu向けのモダンなデスクトップ環境UI。
+
+
+
+https://github.com/user-attachments/assets/92e7594f-154e-49ec-9e8b-7c502b757081
+
+
 ## 概要
 
 - **フレームワーク**: Tauri 2.x + React + TypeScript
