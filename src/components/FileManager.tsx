@@ -18,10 +18,10 @@ import {
   RefreshCw,
   Grid,
   List,
-  ArrowUp,
-  X
+  ArrowUp
 } from 'lucide-react';
 import type { FileEntry } from '../types';
+import { WindowWrapper } from './WindowWrapper';
 
 interface FileManagerProps {
   accentColor: string;
@@ -132,33 +132,40 @@ export function FileManager({ accentColor, onClose }: FileManagerProps) {
   ];
 
   return (
-    <div className="flex h-full">
-      {/* Sidebar */}
-      <div className="w-56 border-r border-white/10 p-4">
-        <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 mb-4 px-2">Quick Access</h3>
-        <nav className="space-y-1">
-          {quickAccess.map(item => (
-            <button
-              key={item.path}
-              onClick={() => navigate(item.path)}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all text-left ${
-                currentPath === item.path || currentPath.startsWith(item.path.replace('~', ''))
-                  ? 'text-white'
-                  : 'text-slate-500 hover:text-slate-700 hover:bg-white/30'
-              }`}
-              style={currentPath === item.path ? { backgroundColor: `${accentColor}30`, color: accentColor } : {}}
-            >
-              <item.icon size={18} />
-              <span className="font-medium text-sm">{item.name}</span>
-            </button>
-          ))}
-        </nav>
-      </div>
+    <WindowWrapper
+      title="File Manager"
+      subtitle="Sister Storage"
+      icon={<Folder size={22} />}
+      accentColor={accentColor}
+      onClose={onClose}
+    >
+      <div className="flex h-full">
+        {/* Sidebar */}
+        <div className="w-56 border-r border-white/10 p-4">
+          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 mb-4 px-2">Quick Access</h3>
+          <nav className="space-y-1">
+            {quickAccess.map(item => (
+              <button
+                key={item.path}
+                onClick={() => navigate(item.path)}
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all text-left ${
+                  currentPath === item.path || currentPath.startsWith(item.path.replace('~', ''))
+                    ? 'text-white'
+                    : 'text-slate-500 hover:text-slate-700 hover:bg-white/30'
+                }`}
+                style={currentPath === item.path ? { backgroundColor: `${accentColor}30`, color: accentColor } : {}}
+              >
+                <item.icon size={18} />
+                <span className="font-medium text-sm">{item.name}</span>
+              </button>
+            ))}
+          </nav>
+        </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col">
-        {/* Toolbar */}
-        <div className="flex items-center gap-2 p-3 border-b border-white/10">
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col">
+          {/* Toolbar */}
+          <div className="flex items-center gap-2 p-3 border-b border-white/10">
           <button
             onClick={goBack}
             disabled={historyIndex === 0}
@@ -205,20 +212,10 @@ export function FileManager({ accentColor, onClose }: FileManagerProps) {
               <List size={18} className="text-slate-600" />
             </button>
           </div>
+          </div>
 
-          {onClose && (
-            <button
-              onClick={onClose}
-              className="ml-2 p-2 rounded-lg hover:bg-red-500 hover:text-white transition-colors text-slate-500"
-              title="Close"
-            >
-              <X size={20} />
-            </button>
-          )}
-        </div>
-
-        {/* File List */}
-        <div className="flex-1 overflow-auto p-4">
+          {/* File List */}
+          <div className="flex-1 overflow-auto p-4">
           {loading ? (
             <div className="flex items-center justify-center h-full">
               <RefreshCw size={32} className="animate-spin text-slate-400" />
@@ -268,14 +265,15 @@ export function FileManager({ accentColor, onClose }: FileManagerProps) {
               ))}
             </div>
           )}
-        </div>
+          </div>
 
-        {/* Status Bar */}
-        <div className="flex items-center justify-between px-4 py-2 border-t border-white/10 text-xs text-slate-400">
-          <span>{files.length} items</span>
-          <span>{files.filter(f => f.is_dir).length} folders, {files.filter(f => !f.is_dir).length} files</span>
+          {/* Status Bar */}
+          <div className="flex items-center justify-between px-4 py-2 border-t border-white/10 text-xs text-slate-400">
+            <span>{files.length} items</span>
+            <span>{files.filter(f => f.is_dir).length} folders, {files.filter(f => !f.is_dir).length} files</span>
+          </div>
         </div>
       </div>
-    </div>
+    </WindowWrapper>
   );
 }

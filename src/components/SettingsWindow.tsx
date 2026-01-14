@@ -6,9 +6,11 @@ import {
   Palette, 
   Layout,
   Check,
-  RefreshCw
+  RefreshCw,
+  Settings
 } from 'lucide-react';
 import type { DesktopSettings } from '../types';
+import { WindowWrapper } from './WindowWrapper';
 
 interface SettingsWindowProps {
   settings: DesktopSettings;
@@ -71,40 +73,46 @@ export function SettingsWindow({ settings, onSave, accentColor }: SettingsWindow
   const bgCard = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)';
 
   return (
-    <div className="flex h-full" style={{ color: textColor }}>
-      {/* Sidebar */}
-      <div 
-        className="w-48 flex-shrink-0 p-4 border-r"
-        style={{ borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}
-      >
-        <div className="text-[10px] font-bold uppercase tracking-widest mb-4" style={{ color: subTextColor }}>
-          Settings
+    <WindowWrapper
+      title="Settings"
+      subtitle="Crystal Settings"
+      icon={<Settings size={22} />}
+      accentColor={accentColor}
+    >
+      <div className="flex h-full" style={{ color: textColor }}>
+        {/* Sidebar */}
+        <div 
+          className="w-48 flex-shrink-0 p-4 border-r"
+          style={{ borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}
+        >
+          <div className="text-[10px] font-bold uppercase tracking-widest mb-4" style={{ color: subTextColor }}>
+            Settings
+          </div>
+          {[
+            { id: 'wallpaper' as Tab, icon: Image, label: 'Wallpaper' },
+            { id: 'theme' as Tab, icon: Palette, label: 'Theme' },
+            { id: 'dock' as Tab, icon: Layout, label: 'Dock' },
+          ].map(t => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg mb-1 transition-colors"
+              style={{
+                backgroundColor: tab === t.id ? `${accentColor}20` : 'transparent',
+                color: tab === t.id ? accentColor : textColor,
+              }}
+            >
+              <t.icon size={16} />
+              <span className="text-sm font-medium">{t.label}</span>
+            </button>
+          ))}
         </div>
-        {[
-          { id: 'wallpaper' as Tab, icon: Image, label: 'Wallpaper' },
-          { id: 'theme' as Tab, icon: Palette, label: 'Theme' },
-          { id: 'dock' as Tab, icon: Layout, label: 'Dock' },
-        ].map(t => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg mb-1 transition-colors"
-            style={{
-              backgroundColor: tab === t.id ? `${accentColor}20` : 'transparent',
-              color: tab === t.id ? accentColor : textColor,
-            }}
-          >
-            <t.icon size={16} />
-            <span className="text-sm font-medium">{t.label}</span>
-          </button>
-        ))}
-      </div>
 
-      {/* Content */}
-      <div className="flex-1 p-6 overflow-y-auto">
-        {/* WALLPAPER TAB */}
-        {tab === 'wallpaper' && (
-          <div>
+        {/* Content */}
+        <div className="flex-1 p-6 overflow-y-auto">
+          {/* WALLPAPER TAB */}
+          {tab === 'wallpaper' && (
+            <div>
             <h2 className="text-xl font-bold mb-4">Wallpaper</h2>
 
             {/* Opacity */}
@@ -207,10 +215,10 @@ export function SettingsWindow({ settings, onSave, accentColor }: SettingsWindow
               </div>
             )}
           </div>
-        )}
+          )}
 
-        {/* THEME TAB */}
-        {tab === 'theme' && (
+          {/* THEME TAB */}
+          {tab === 'theme' && (
           <div>
             <h2 className="text-xl font-bold mb-4">Theme</h2>
             
@@ -265,10 +273,10 @@ export function SettingsWindow({ settings, onSave, accentColor }: SettingsWindow
               ))}
             </div>
           </div>
-        )}
+          )}
 
-        {/* DOCK TAB */}
-        {tab === 'dock' && (
+          {/* DOCK TAB */}
+          {tab === 'dock' && (
           <div>
             <h2 className="text-xl font-bold mb-4">Dock</h2>
 
@@ -335,8 +343,9 @@ export function SettingsWindow({ settings, onSave, accentColor }: SettingsWindow
               />
             </div>
           </div>
-        )}
+          )}
+        </div>
       </div>
-    </div>
+    </WindowWrapper>
   );
 }

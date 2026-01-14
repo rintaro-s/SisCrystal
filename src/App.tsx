@@ -30,13 +30,20 @@ import {
   FileText,
   LayoutGrid,
   ShieldCheck,
-  Activity
+  Activity,
+  FolderOpen
 } from 'lucide-react';
 
 import { SettingsWindow } from './components/SettingsWindow';
 import { FileManager } from './components/FileManager';
 import { ConsoleWindow } from './components/ConsoleWindow';
 import { AppLauncher } from './components/AppLauncher';
+import { ClockWidget } from './components/widgets/ClockWidget';
+import { CalendarWidget } from './components/widgets/CalendarWidget';
+import { TimeRemainingWidget } from './components/widgets/TimeRemainingWidget';
+import { TrainTimerWidget } from './components/widgets/TrainTimerWidget';
+import { TodoWidget } from './components/widgets/TodoWidget';
+import { MusicControlWidget } from './components/widgets/MusicControlWidget';
 
 import type { DesktopSettings, FileEntry, SystemInfo, BatteryInfo, NetworkInfo, AudioInfo } from './types';
 
@@ -44,6 +51,14 @@ type UserProfile = {
   username: string;
   avatar_path: string | null;
 };
+
+type WidgetType = 'clock' | 'calendar' | 'time-remaining' | 'train-timer' | 'todo' | 'music';
+
+interface ActiveWidget {
+  id: string;
+  type: WidgetType;
+  position: { x: number; y: number };
+}
 
 // ==================== MAIN APP ====================
 const App = () => {
@@ -75,6 +90,9 @@ const App = () => {
   const [showAppLauncher, setShowAppLauncher] = useState(false);
   const [showPowerMenu, setShowPowerMenu] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  
+  // Widgets state
+  const [widgets, setWidgets] = useState<ActiveWidget[]>([]);
 
   // Sister Network
   const [networkUrl, setNetworkUrl] = useState('https://');
@@ -190,6 +208,18 @@ const App = () => {
       .then(files => setDesktopFiles(files.slice(0, 4)))
       .catch(() => setDesktopFiles([]));
   }, [scene]);
+
+  // ==================== INITIALIZE WIDGETS ====================
+  useEffect(() => {
+    if (scene === 'desktop' && widgets.length === 0) {
+      setWidgets([
+        { id: 'clock-1', type: 'clock', position: { x: 50, y: 120 } },
+        { id: 'calendar-1', type: 'calendar', position: { x: 250, y: 120 } },
+        { id: 'todo-1', type: 'todo', position: { x: 50, y: 350 } },
+        { id: 'music-1', type: 'music', position: { x: 350, y: 350 } },
+      ]);
+    }
+  }, [scene, widgets.length]);
 
   // ==================== SAVE SETTINGS ====================
   const saveSettings = useCallback(async (newSettings: DesktopSettings) => {
@@ -414,32 +444,11 @@ const App = () => {
           </div>
         </div>
 
-        {/* Center: Sister Control Bar (always visible) */}
+        {/* Center: Media & Volume Controls */}
         <div
           className={`h-16 px-5 rounded-[2rem] flex items-center gap-4 ${crystalBase}`}
           style={isDarkTheme ? undefined : { backgroundColor: 'rgba(15,23,42,0.65)' }}
         >
-          {/* Modules */}
-          <div className="flex items-center gap-2">
-            {[
-              { id: 'files', label: 'Storage', icon: Folder },
-              { id: 'terminal', label: 'Console', icon: Terminal },
-              { id: 'settings', label: 'Settings', icon: Settings },
-              { id: 'browser', label: 'Network', icon: Globe },
-            ].map(m => (
-              <button
-                key={m.id}
-                onClick={() => openModule(m.id)}
-                className="w-10 h-10 rounded-2xl flex items-center justify-center hover:bg-white/10 transition-colors"
-                title={m.label}
-              >
-                <m.icon size={18} className="text-white" />
-              </button>
-            ))}
-          </div>
-
-          <div className={`h-8 w-[1px] ${isDarkTheme ? 'bg-white/10' : 'bg-white/15'}`} />
-
           {/* Media */}
           <div className="flex items-center gap-2 text-white">
             <button onClick={() => mediaControl('previous')} className="p-2 hover:bg-white/10 rounded-full">
@@ -775,7 +784,7 @@ const App = () => {
                   <span className="font-black italic tracking-widest text-xs">DESKTOP</span>
                 </div>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 mb-3">
                 {desktopFiles.map((f, i) => (
                   <button
                     key={i}
@@ -789,6 +798,14 @@ const App = () => {
                   </button>
                 ))}
               </div>
+              <button
+                onClick={() => openModule('files')}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-white/40 hover:bg-white/60 transition-all"
+                style={{ color: accentColor }}
+              >
+                <FolderOpen size={16} />
+                <span className="text-xs font-bold">開く</span>
+              </button>
             </div>
           )}
         </div>
@@ -893,6 +910,38 @@ const App = () => {
           />
         ) : null
       )}
+
+      {/* ===== WIDGETS ===== */}
+      {scene === 'desktop' && widgets.map(widget => {
+        const widgetProps = {
+          id: widget.id,
+          accentColor,
+          defaultPosition: widget.position,
+          onClose: () => setWidgets(widgets.filter(w => w.id !== widget.id))
+        };
+
+        try {
+          switch (widget.type) {
+            case 'clock':
+              return <ClockWidget key={widget.id} {...widgetProps} />;
+            case 'calendar':
+              return <CalendarWidget key={widget.id} {...widgetProps} />;
+            case 'time-remaining':
+              return <TimeRemainingWidget key={widget.id} {...widgetProps} />;
+            case 'train-timer':
+              return <TrainTimerWidget key={widget.id} {...widgetProps} />;
+            case 'todo':
+              return <TodoWidget key={widget.id} {...widgetProps} />;
+            case 'music':
+              return <MusicControlWidget key={widget.id} {...widgetProps} />;
+            default:
+              return null;
+          }
+        } catch (error) {
+          console.error('Widget render error:', widget.type, error);
+          return null;
+        }
+      })}
 
       {/* ===== ANIMATIONS ===== */}
       <style>{`

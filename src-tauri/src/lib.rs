@@ -1019,6 +1019,15 @@ fn run_shell(command: &str) -> Result<String, String> {
     }
 }
 
+// ===== File Reading =====
+
+#[tauri::command]
+fn read_file(path: &str) -> Result<String, String> {
+    let expanded_path = shellexpand::tilde(path);
+    fs::read_to_string(expanded_path.as_ref())
+        .map_err(|e| format!("Failed to read file: {}", e))
+}
+
 // ===== Application Entry =====
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -1056,6 +1065,7 @@ pub fn run() {
             get_user_profile,
             system_action,
             run_shell,
+            read_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
