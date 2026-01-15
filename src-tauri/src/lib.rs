@@ -219,10 +219,27 @@ fn resolve_icon_path(icon: &str) -> Option<String> {
     }
 
     // Common pixmaps
-    for ext in ["png", "svg", "xpm"] {
-        let pix = PathBuf::from(format!("/usr/share/pixmaps/{icon}.{ext}"));
-        if pix.exists() && pix.is_file() {
-            return Some(pix.to_string_lossy().to_string());
+    let pixmap_roots = [
+        "/usr/share/pixmaps",
+        "/usr/local/share/pixmaps",
+        "/var/lib/flatpak/exports/share/pixmaps",
+        "/run/host/usr/share/pixmaps",
+        "/run/host/usr/local/share/pixmaps",
+        "/run/host/var/lib/flatpak/exports/share/pixmaps",
+    ];
+    let mut pixmap_roots = pixmap_roots
+        .into_iter()
+        .map(PathBuf::from)
+        .collect::<Vec<_>>();
+    if let Some(home) = dirs::home_dir() {
+        pixmap_roots.push(home.join(".local/share/flatpak/exports/share/pixmaps"));
+    }
+    for root in pixmap_roots {
+        for ext in ["png", "svg", "xpm"] {
+            let pix = root.join(format!("{icon}.{ext}"));
+            if pix.exists() && pix.is_file() {
+                return Some(pix.to_string_lossy().to_string());
+            }
         }
     }
 
@@ -232,6 +249,13 @@ fn resolve_icon_path(icon: &str) -> Option<String> {
     }
     roots.push(PathBuf::from("/usr/share/icons"));
     roots.push(PathBuf::from("/usr/local/share/icons"));
+    roots.push(PathBuf::from("/var/lib/flatpak/exports/share/icons"));
+    roots.push(PathBuf::from("/run/host/usr/share/icons"));
+    roots.push(PathBuf::from("/run/host/usr/local/share/icons"));
+    roots.push(PathBuf::from("/run/host/var/lib/flatpak/exports/share/icons"));
+    if let Some(home) = dirs::home_dir() {
+        roots.push(home.join(".local/share/flatpak/exports/share/icons"));
+    }
 
     let themes = ["hicolor", "Adwaita"];
     let sizes = [
@@ -306,10 +330,36 @@ fn get_player_metadata() -> (Option<String>, Option<String>, bool) {
                     .as_ref()
                     .and_then(|m| m.artists())
                     .and_then(|a| a.get(0).map(|s| s.to_string()));
-                // If MPRIS is present but metadata is empty, try playerctl as a fallback.
+                // Always return playback state if a player is present.
+                // Some players expose playback status but omit metadata.
                 if title.is_some() || artist.is_some() {
                     return (title, artist, playing);
                 }
+
+                // If MPRIS is present but metadata is empty, try playerctl to fill title/artist.
+                if let Ok(output) = run_command(
+                    "playerctl",
+                    &[
+                        "metadata",
+                        "--player=%any",
+                        "--format",
+                        "{{title}}|||{{artist}}|||{{status}}",
+                    ],
+                ) {
+                    let parts: Vec<&str> = output.trim().split("|||").collect();
+                    let title = parts
+                        .get(0)
+                        .filter(|s| !s.is_empty())
+                        .map(|s| s.to_string());
+                    let artist = parts
+                        .get(1)
+                        .filter(|s| !s.is_empty())
+                        .map(|s| s.to_string());
+                    let playing_from_playerctl = parts.get(2).map(|s| *s == "Playing").unwrap_or(false);
+                    return (title, artist, playing || playing_from_playerctl);
+                }
+
+                return (None, None, playing);
             }
         }
     }
@@ -684,32 +734,31 @@ fn get_brightness() -> u32 {
 #[tauri::command]
 fn get_installed_apps() -> Vec<DesktopApp> {
     let mut apps = Vec::new();
-    let app_dirs = [
-        "/usr/share/applications",
-        "/usr/local/share/applications",
+    let mut app_dirs: Vec<PathBuf> = vec![
+        PathBuf::from("/usr/share/applications"),
+        PathBuf::from("/usr/local/share/applications"),
+        PathBuf::from("/var/lib/flatpak/exports/share/applications"),
+        PathBuf::from("/run/host/usr/share/applications"),
+        PathBuf::from("/run/host/usr/local/share/applications"),
+        PathBuf::from("/run/host/var/lib/flatpak/exports/share/applications"),
     ];
-    
     if let Some(home) = dirs::home_dir() {
-        let local_apps = home.join(".local/share/applications");
-        if local_apps.exists() {
-            for entry in WalkDir::new(&local_apps).max_depth(2).into_iter().filter_map(|e| e.ok()) {
-                if entry.path().extension().map(|e| e == "desktop").unwrap_or(false) {
-                    if let Some(app) = parse_desktop_file(entry.path()) {
-                        apps.push(app);
-                    }
-                }
-            }
-        }
+        app_dirs.push(home.join(".local/share/applications"));
+        app_dirs.push(home.join(".local/share/flatpak/exports/share/applications"));
     }
 
-    for dir in &app_dirs {
-        if let Ok(entries) = fs::read_dir(dir) {
-            for entry in entries.filter_map(|e| e.ok()) {
-                let path = entry.path();
-                if path.extension().map(|e| e == "desktop").unwrap_or(false) {
-                    if let Some(app) = parse_desktop_file(&path) {
-                        apps.push(app);
-                    }
+    for dir in app_dirs {
+        if !dir.exists() {
+            continue;
+        }
+        for entry in WalkDir::new(&dir)
+            .max_depth(2)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            if entry.path().extension().map(|e| e == "desktop").unwrap_or(false) {
+                if let Some(app) = parse_desktop_file(entry.path()) {
+                    apps.push(app);
                 }
             }
         }

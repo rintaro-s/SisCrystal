@@ -1,17 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Music, Play, Pause, SkipBack, SkipForward } from 'lucide-react';
 import { Widget } from '../Widget';
 import { invoke } from '@tauri-apps/api/core';
+import type { AudioInfo } from '../../types';
 
 interface MusicControlWidgetProps {
   id: string;
   accentColor: string;
   defaultPosition?: { x: number; y: number };
   onClose?: () => void;
+  audioInfo?: AudioInfo | null;
 }
 
-export function MusicControlWidget({ id, accentColor, defaultPosition, onClose }: MusicControlWidgetProps) {
-  const [isPlaying, setIsPlaying] = useState(false);
+export function MusicControlWidget({ id, accentColor, defaultPosition, onClose, audioInfo }: MusicControlWidgetProps) {
+  const isPlaying = useMemo(() => Boolean(audioInfo?.is_playing), [audioInfo?.is_playing]);
   const [audioData, setAudioData] = useState<number[]>(new Array(20).fill(0));
 
   // Simulate audio waveform
@@ -33,7 +35,6 @@ export function MusicControlWidget({ id, accentColor, defaultPosition, onClose }
   const handlePlayPause = async () => {
     try {
       await invoke('media_control', { action: isPlaying ? 'pause' : 'play' });
-      setIsPlaying(!isPlaying);
     } catch (e) {
       console.error('Media control failed:', e);
     }
@@ -110,8 +111,11 @@ export function MusicControlWidget({ id, accentColor, defaultPosition, onClose }
           <div className="text-xs font-bold text-slate-700 mb-1">
             {isPlaying ? 'Now Playing' : 'Paused'}
           </div>
-          <div className="text-[10px] text-slate-400">
-            System Media Player
+          <div className="text-[10px] text-slate-500 truncate">
+            {audioInfo?.current_track || 'No Track'}
+          </div>
+          <div className="text-[10px] text-slate-400 truncate">
+            {audioInfo?.current_artist || '—'}
           </div>
         </div>
       </div>

@@ -4,9 +4,13 @@ import tailwindcss from "@tailwindcss/vite";
 
 // @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
+// GitHub Pages build
+// @ts-expect-error process is a nodejs global
+const isGitHubPages = process.env.GITHUB_PAGES === "true";
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
+  base: isGitHubPages ? "/SisCrystal/" : undefined,
   plugins: [react(), tailwindcss()],
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
@@ -27,7 +31,12 @@ export default defineConfig(async () => ({
       : undefined,
     watch: {
       // 3. tell Vite to ignore watching `src-tauri`
-      ignored: ["**/src-tauri/**"],
+      ignored: [
+        "**/src-tauri/**",
+        "**/build-flatpak/**",
+        "**/.flatpak-builder/**",
+        "**/flatpak_repo/**",
+      ],
     },
   },
 }));

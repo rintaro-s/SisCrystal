@@ -1,0 +1,86 @@
+app-id: com.siscrystal.desktop
+runtime: org.gnome.Platform
+runtime-version: '48'
+sdk: org.gnome.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+  - org.freedesktop.Sdk.Extension.node20
+
+command: sis-crystal-desktop
+
+finish-args:
+  - --device=dri
+  - --share=network
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --socket=pulseaudio
+  - --filesystem=home
+  - --filesystem=/run/media
+  - --filesystem=/usr/share/applications:ro
+  - --filesystem=/usr/local/share/applications:ro
+  - --filesystem=/var/lib/flatpak/exports/share/applications:ro
+  - --filesystem=/run/host/usr/share/applications:ro
+  - --filesystem=/run/host/usr/local/share/applications:ro
+  - --filesystem=/run/host/var/lib/flatpak/exports/share/applications:ro
+  - --filesystem=/usr/share/icons:ro
+  - --filesystem=/usr/local/share/icons:ro
+  - --filesystem=/var/lib/flatpak/exports/share/icons:ro
+  - --filesystem=/run/host/usr/share/icons:ro
+  - --filesystem=/run/host/usr/local/share/icons:ro
+  - --filesystem=/run/host/var/lib/flatpak/exports/share/icons:ro
+  - --filesystem=/usr/share/pixmaps:ro
+  - --filesystem=/usr/local/share/pixmaps:ro
+  - --filesystem=/var/lib/flatpak/exports/share/pixmaps:ro
+  - --filesystem=/run/host/usr/share/pixmaps:ro
+  - --filesystem=/run/host/usr/local/share/pixmaps:ro
+  - --filesystem=/run/host/var/lib/flatpak/exports/share/pixmaps:ro
+  - --filesystem=/run/host:ro
+  - --talk-name=org.freedesktop.DBus
+  - --talk-name=org.mpris.MediaPlayer2.*
+  - --talk-name=org.freedesktop.DBus.Properties
+
+cleanup:
+  - /include
+  - /lib/pkgconfig
+  - /lib/cmake
+  - /share/pkgconfig
+  - /share/man
+  - '*.a'
+  - '*.la'
+
+modules:
+  - name: sis-crystal-desktop
+    buildsystem: simple
+    build-options:
+      build-args:
+        - --share=network
+      append-path: /usr/lib/sdk/rust-stable/bin
+      append-ld-library-path: /usr/lib/sdk/rust-stable/lib
+      env:
+        CARGO_HOME: /run/build/sis-crystal-desktop/cargo
+        CARGO_NET_RETRY: "10"
+        CARGO_HTTP_TIMEOUT: "600"
+        CARGO_HTTP_LOW_SPEED_LIMIT: "1"
+        CARGO_HTTP_LOW_SPEED_TIME: "60"
+    build-commands:
+      - |
+        export PATH="/usr/lib/sdk/node20/bin:$PATH"
+        npm ci --prefer-offline --no-audit --no-fund --include=dev
+        npm run build
+        npm run tauri build -- --no-bundle
+      - |
+        install -Dm755 src-tauri/target/release/sis-crystal-desktop /app/bin/sis-crystal-desktop
+        install -Dm644 src-tauri/icons/128x128.png /app/share/icons/hicolor/128x128/apps/com.siscrystal.desktop.png
+        install -Dm644 /dev/stdin /app/share/applications/com.siscrystal.desktop.desktop << 'EOF'
+        [Desktop Entry]
+        Type=Application
+        Name=SisCrystal
+        Comment=Modern desktop environment UI
+        Icon=com.siscrystal.desktop
+        Exec=sis-crystal-desktop
+        Categories=System;
+        EOF
+    sources:
+      - type: dir
+        path: .

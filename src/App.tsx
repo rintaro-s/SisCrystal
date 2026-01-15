@@ -62,6 +62,10 @@ interface ActiveWidget {
 
 // ==================== MAIN APP ====================
 const App = () => {
+  const [showWebNotice, setShowWebNotice] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return !(window as unknown as { __TAURI__?: unknown }).__TAURI__;
+  });
   // Scene state
   const [scene, setScene] = useState<'title' | 'login' | 'desktop'>('title');
   const [isBooting, setIsBooting] = useState(false);
@@ -168,16 +172,14 @@ const App = () => {
 
     const fetchAll = async () => {
       try {
-        const [sys, bat, net, aud] = await Promise.all([
+        const [sys, bat, net] = await Promise.all([
           invoke<SystemInfo>('get_system_info'),
           invoke<BatteryInfo | null>('get_battery_info'),
           invoke<NetworkInfo>('get_network_info'),
-          invoke<AudioInfo>('get_audio_info'),
         ]);
         setSystemInfo(sys);
         setBatteryInfo(bat);
         setNetworkInfo(net);
-        setAudioInfo(aud);
       } catch (e) {
         console.error('System fetch error:', e);
       }
@@ -185,6 +187,24 @@ const App = () => {
 
     fetchAll();
     const interval = setInterval(fetchAll, 5000);  // Increased from 2000ms to 5000ms for better responsiveness
+    return () => clearInterval(interval);
+  }, [scene]);
+
+  // ==================== AUDIO POLLING (MPRIS) ====================
+  useEffect(() => {
+    if (scene !== 'desktop') return;
+
+    const fetchAudio = async () => {
+      try {
+        const aud = await invoke<AudioInfo>('get_audio_info');
+        setAudioInfo(aud);
+      } catch (e) {
+        console.error('Audio fetch error:', e);
+      }
+    };
+
+    fetchAudio();
+    const interval = setInterval(fetchAudio, 1000);
     return () => clearInterval(interval);
   }, [scene]);
 
@@ -262,7 +282,8 @@ const App = () => {
   const toggleMute = useCallback(async () => {
     try {
       await invoke('toggle_mute');
-      // Fetch audio info on next poll, don't block UI
+      const aud = await invoke<AudioInfo>('get_audio_info');
+      setAudioInfo(aud);
     } catch (e) {
       console.error('Toggle mute failed:', e);
     }
@@ -271,7 +292,8 @@ const App = () => {
   const mediaControl = useCallback(async (action: string) => {
     try {
       await invoke('media_control', { action });
-      // Fetch audio info on next poll, don't block UI
+      const aud = await invoke<AudioInfo>('get_audio_info');
+      setAudioInfo(aud);
     } catch (e) {
       console.error('Media control failed:', e);
     }
@@ -310,6 +332,36 @@ const App = () => {
         className="w-screen h-screen flex flex-col items-center justify-center bg-[#f4faff] relative overflow-hidden cursor-pointer select-none"
         onClick={() => setScene('login')}
       >
+        {showWebNotice && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+            <div className="max-w-lg w-[90%] rounded-3xl border border-white/20 bg-white/90 p-8 text-slate-800 shadow-2xl">
+              <h3 className="text-lg font-bold mb-3">Notice</h3>
+              <p className="text-sm leading-6">
+                System features are available on Linux. Please run this app on Linux to use them.
+                Installation instructions: 
+                <a
+                  href="https://github.com/rintaro-s/SisCrystal/releases/"
+                  className="ml-1 text-blue-600 underline"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  https://github.com/rintaro-s/SisCrystal/releases/
+                </a>
+              </p>
+              <div className="mt-6 flex justify-end">
+                <button
+                  className="px-4 py-2 rounded-full bg-blue-600 text-white text-sm font-semibold"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowWebNotice(false);
+                  }}
+                >
+                  OK
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(0,163,255,0.15),transparent)] animate-pulse" />
         <div className="z-10 text-center animate-in zoom-in duration-1000">
           <h1 className="text-8xl font-thin tracking-[0.3em] mb-4 drop-shadow-sm" style={{ color: accentColor }}>
@@ -329,6 +381,33 @@ const App = () => {
   if (scene === 'login' || isBooting) {
     return (
       <div className="w-screen h-screen flex items-center justify-center bg-white relative overflow-hidden select-none">
+        {showWebNotice && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+            <div className="max-w-lg w-[90%] rounded-3xl border border-white/20 bg-white/90 p-8 text-slate-800 shadow-2xl">
+              <h3 className="text-lg font-bold mb-3">Notice</h3>
+              <p className="text-sm leading-6">
+                System features are available on Linux. Please run this app on Linux to use them.
+                Installation instructions: 
+                <a
+                  href="https://github.com/rintaro-s/SisCrystal/releases/"
+                  className="ml-1 text-blue-600 underline"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  https://github.com/rintaro-s/SisCrystal/releases/
+                </a>
+              </p>
+              <div className="mt-6 flex justify-end">
+                <button
+                  className="px-4 py-2 rounded-full bg-blue-600 text-white text-sm font-semibold"
+                  onClick={() => setShowWebNotice(false)}
+                >
+                  OK
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         {isBooting ? (
           <div className="flex flex-col items-center gap-6">
             <div className="w-64 h-[1px] bg-slate-100 relative overflow-hidden">
@@ -387,6 +466,33 @@ const App = () => {
   // ==================== DESKTOP SCENE ====================
   return (
     <div className={`w-screen h-screen flex flex-col relative overflow-hidden font-sans select-none ${themeBgClass}`}>
+      {showWebNotice && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="max-w-lg w-[90%] rounded-3xl border border-white/20 bg-white/90 p-8 text-slate-800 shadow-2xl">
+            <h3 className="text-lg font-bold mb-3">Notice</h3>
+            <p className="text-sm leading-6">
+              System features are available on Linux. Please run this app on Linux to use them.
+              Installation instructions: 
+              <a
+                href="https://github.com/rintaro-s/SisCrystal/releases/"
+                className="ml-1 text-blue-600 underline"
+                target="_blank"
+                rel="noreferrer"
+              >
+                https://github.com/rintaro-s/SisCrystal/releases/
+              </a>
+            </p>
+            <div className="mt-6 flex justify-end">
+              <button
+                className="px-4 py-2 rounded-full bg-blue-600 text-white text-sm font-semibold"
+                onClick={() => setShowWebNotice(false)}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* ===== WALLPAPER ===== */}
       <div 
         className="absolute inset-0 bg-cover bg-center transition-transform duration-[40s] scale-110"
@@ -933,7 +1039,7 @@ const App = () => {
             case 'todo':
               return <TodoWidget key={widget.id} {...widgetProps} />;
             case 'music':
-              return <MusicControlWidget key={widget.id} {...widgetProps} />;
+              return <MusicControlWidget key={widget.id} {...widgetProps} audioInfo={audioInfo} />;
             default:
               return null;
           }
