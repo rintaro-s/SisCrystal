@@ -1,6 +1,7 @@
 # SCHALE Desktop Environment
 
 <img width="1920" height="1080" alt="Screenshot from 2026-01-14 09-53-09" src="https://github.com/user-attachments/assets/cd0a7589-8ae5-4849-bdfa-5d4f344b4d6e" />
+Wallpaper “Archちゃん” by Ravimo is licensed under CC BY 4.0
 
 https://github.com/user-attachments/assets/0b84328c-c0e5-4888-89c8-0a1a11a3339c
 
