@@ -4,7 +4,6 @@ import { convertFileSrc } from '@tauri-apps/api/core';
 import { 
   Image, 
   Palette, 
-  Layout,
   Check,
   RefreshCw,
   Settings
@@ -18,7 +17,7 @@ interface SettingsWindowProps {
   accentColor: string;
 }
 
-type Tab = 'wallpaper' | 'theme' | 'dock';
+type Tab = 'wallpaper' | 'theme';
 
 export function SettingsWindow({ settings, onSave, accentColor }: SettingsWindowProps) {
   const [tab, setTab] = useState<Tab>('wallpaper');
@@ -91,7 +90,6 @@ export function SettingsWindow({ settings, onSave, accentColor }: SettingsWindow
           {[
             { id: 'wallpaper' as Tab, icon: Image, label: 'Wallpaper' },
             { id: 'theme' as Tab, icon: Palette, label: 'Theme' },
-            { id: 'dock' as Tab, icon: Layout, label: 'Dock' },
           ].map(t => (
             <button
               key={t.id}
@@ -271,76 +269,6 @@ export function SettingsWindow({ settings, onSave, accentColor }: SettingsWindow
                   <span className="text-sm">{a.name}</span>
                 </button>
               ))}
-            </div>
-          </div>
-          )}
-
-          {/* DOCK TAB */}
-          {tab === 'dock' && (
-          <div>
-            <h2 className="text-xl font-bold mb-4">Dock</h2>
-
-            {/* Position */}
-            <div className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: subTextColor }}>
-              Position
-            </div>
-            <div className="flex gap-3 mb-8">
-              {[
-                { id: 'bottom', label: 'Bottom' },
-                { id: 'left', label: 'Left' },
-                { id: 'right', label: 'Right' },
-              ].map(p => (
-                <button
-                  key={p.id}
-                  onClick={() => update('dock_position', p.id as 'bottom' | 'left' | 'right')}
-                  className="px-4 py-2 rounded-xl text-sm transition-all"
-                  style={{
-                    backgroundColor: local.dock_position === p.id ? accentColor : bgCard,
-                    color: local.dock_position === p.id ? '#fff' : textColor,
-                  }}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Auto-hide */}
-            <div className="flex items-center justify-between p-4 rounded-xl mb-4" style={{ backgroundColor: bgCard }}>
-              <div>
-                <div className="font-medium">Auto-hide Dock</div>
-                <div className="text-xs" style={{ color: subTextColor }}>
-                  Hide dock until cursor reaches edge
-                </div>
-              </div>
-              <button
-                onClick={() => update('dock_auto_hide', !local.dock_auto_hide)}
-                className="w-12 h-6 rounded-full p-1 transition-colors"
-                style={{ backgroundColor: local.dock_auto_hide ? accentColor : 'rgba(128,128,128,0.3)' }}
-              >
-                <div 
-                  className="w-4 h-4 rounded-full bg-white transition-transform"
-                  style={{ transform: local.dock_auto_hide ? 'translateX(24px)' : 'translateX(0)' }}
-                />
-              </button>
-            </div>
-
-            {/* Icon Size */}
-            <div className="p-4 rounded-xl" style={{ backgroundColor: bgCard }}>
-              <div className="flex items-center justify-between mb-2">
-                <div className="font-medium">Icon Size</div>
-                <span className="text-sm" style={{ color: subTextColor }}>{local.dock_icon_size || 44}px</span>
-              </div>
-              <input
-                type="range"
-                min="32"
-                max="64"
-                value={local.dock_icon_size || 44}
-                onChange={(e) => update('dock_icon_size', Number(e.target.value))}
-                className="w-full h-2 rounded-full appearance-none cursor-pointer"
-                style={{ 
-                  background: `linear-gradient(to right, ${accentColor} ${((local.dock_icon_size || 44) - 32) / 32 * 100}%, rgba(128,128,128,0.3) ${((local.dock_icon_size || 44) - 32) / 32 * 100}%)`
-                }}
-              />
             </div>
           </div>
           )}
