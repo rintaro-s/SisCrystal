@@ -7,6 +7,11 @@ https://github.com/user-attachments/assets/0b84328c-c0e5-4888-89c8-0a1a11a3339c
 
 A modern desktop environment UI for Ubuntu.
 
+## Wallpaper
+
+The desktop wallpaper shown above is from your local directory: `~/Pictures/wallpaper/`.  
+Please ensure you have your preferred wallpaper image placed in that folder for the best experience.
+
 ## Overview
 
 - **Framework**: Tauri 2.x + React + TypeScript
