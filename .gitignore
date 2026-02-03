@@ -31,3 +31,4 @@ build-flatpak/
 flatpak_repo/
 flatpak-build.log
 *.flatpak
+tmp/

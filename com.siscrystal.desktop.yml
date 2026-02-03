@@ -67,7 +67,6 @@ modules:
       - |
         export PATH="/usr/lib/sdk/node20/bin:$PATH"
         npm ci --prefer-offline --no-audit --no-fund --include=dev
-        npm run build
         npm run tauri build -- --no-bundle
       - |
         install -Dm755 src-tauri/target/release/sis-crystal-desktop /app/bin/sis-crystal-desktop

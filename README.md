@@ -234,8 +234,26 @@ flatpak install -y flathub org.gnome.Platform//48 org.gnome.Sdk//48
 ```
 
 生成されるもの:
-- `build-flatpak/` - ビルド作業ディレクトリ
+- `build-flatpak/` - ビルド作業ディレクトリ（ビルド後は削除可）
 - `flatpak_repo/` - ローカルFlatpakリポジトリ
+- `.flatpak-builder/` - ビルドキャッシュ（巨大になるので定期的にクリーンを推奨）
+
+### ビルドキャッシュのクリーンアップ
+
+Flatpakビルドは `.flatpak-builder/` に大量のキャッシュを蓄積します（60GB以上になることも）。  
+空き容量不足エラー（`min-free-space-percent would be exceeded`）が出た場合や、  
+クリーンビルドが必要な場合は以下を実行：
+
+```bash
+# ビルドキャッシュを削除（容量を大幅に削減）
+rm -rf .flatpak-builder build-flatpak
+
+# リポジトリもクリーンにする場合
+rm -rf flatpak_repo SisCrystal.flatpak
+
+# その後、再度ビルド
+./build-flatpak.sh
+```
 
 ### インストール＆実行
 
@@ -256,10 +274,25 @@ flatpak run com.siscrystal.desktop
 flatpak build-bundle flatpak_repo SisCrystal.flatpak com.siscrystal.desktop
 ```
 
-これで `SisCrystal.flatpak` が生成され、配布後は以下でインストール可能：
+これで `SisCrystal.flatpak`（約3〜5MB）が生成されます。
+
+**他のPCへのインストール手順:**
+
 ```bash
-flatpak install SisCrystal.flatpak
+# 1. Flatpakランタイムがインストールされていることを確認
+flatpak install -y flathub org.gnome.Platform//48
+
+# 2. .flatpakファイルをインストール
+flatpak install --user SisCrystal.flatpak
+
+# 3. 実行
+flatpak run com.siscrystal.desktop
 ```
+
+**トラブルシューティング:**
+- 起動時に「Could not connect to localhost: Connection refused」エラーが出る場合:  
+  → ビルド時にフロントエンドが正しく埋め込まれていない可能性があります。  
+  → `rm -rf .flatpak-builder build-flatpak flatpak_repo` でクリーンしてから `./build-flatpak.sh` を再実行してください。
 
 ## GitHub Pages デモ
 
