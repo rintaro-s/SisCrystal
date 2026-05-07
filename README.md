@@ -1,4 +1,5 @@
 # SCHALE Desktop Environment
+## This English section was translated with GPT-5.4. It may contain minor inaccuracies compared with the Japanese section below.
 
 <img width="1920" height="1080" alt="Screenshot from 2026-01-14 09-53-09" src="https://github.com/user-attachments/assets/cd0a7589-8ae5-4849-bdfa-5d4f344b4d6e" />
 Wallpaper “Archちゃん” by Ravimo is licensed under CC BY 4.0
